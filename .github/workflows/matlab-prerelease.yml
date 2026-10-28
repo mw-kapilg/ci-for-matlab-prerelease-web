@@ -1,0 +1,44 @@
+name: MATLAB Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Prereleases change independently of this repo, so run on a schedule too.
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
+
+jobs:
+  test:
+    name: Test (${{ matrix.release }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # "latest" is the current stable release, kept as a baseline so a
+        # prerelease-only failure is easy to tell apart from a regular bug.
+        # "latest-including-prerelease" resolves to the newest prerelease when
+        # one is newer than the latest release, otherwise to the latest release.
+        release: [latest, latest-including-prerelease]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          release: ${{ matrix.release }}
+
+      - name: Run tests
+        uses: matlab-actions/run-tests@v3
+        with:
+          source-folder: src
+          select-by-folder: tests
+          test-results-junit: test-results/results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.release }}
+          path: test-results/
